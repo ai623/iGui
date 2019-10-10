@@ -9,7 +9,7 @@ namespace iGui {
 	iCommon::Debug debug;
 
 	int Window::wndNum = 0;
-	const D3D_FEATURE_LEVEL Painter::levelsWant[] = { D3D_FEATURE_LEVEL_11_0};
+	const D3D_FEATURE_LEVEL Painter::mlevelsWant[] = { D3D_FEATURE_LEVEL_11_0};
 
 	namespace _internal {
 		HINSTANCE hInstance;
@@ -36,7 +36,7 @@ namespace iGui {
 			{
 				wnd = (Window*)(((CREATESTRUCT*)lParam)->lpCreateParams);
 				SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)wnd);
-				wnd->hWnd = hWnd;
+				wnd->mhWnd = hWnd;
 				Window::wndNum++;
 				Painter(*wnd, Adapter());
 
@@ -48,7 +48,7 @@ namespace iGui {
 				
 				wnd->whenDestroy();
 				wnd->releaseAll();
-				wnd->hWnd = NULL;
+				wnd->mhWnd = NULL;
 				Window::wndNum--;
 				return 0;
 			}
@@ -116,7 +116,7 @@ namespace iGui {
 
 	Window::Window()
 	{
-		hWnd = CreateWindowExW(
+		mhWnd = CreateWindowExW(
 			0,                              // Optional window styles.
 			_internal::wcName,                     // Window class
 			L"",    // Window text
@@ -130,17 +130,17 @@ namespace iGui {
 			_internal::hInstance,  // Instance handle
 			this        // Additional application data
 		);
-		if (hWnd == NULL) {
+		if (mhWnd == NULL) {
 			debug.error("Fail to CreateWindowExW");
 		}
-		InvalidateRect(hWnd, NULL, FALSE);
+		InvalidateRect(mhWnd, NULL, FALSE);
 		
 	}
 
 	Window::~Window()
 	{
-		if (hWnd) {
-			DestroyWindow(hWnd);
+		if (mhWnd) {
+			DestroyWindow(mhWnd);
 			return;
 		}
 		releaseAll();
@@ -149,9 +149,9 @@ namespace iGui {
 	Rect<int> Window::getWindowRect() const
 	{
 		Rect<int> re{};
-		if (hWnd) {
+		if (mhWnd) {
 			RECT rect;
-			if (GetClientRect(hWnd, &rect)) {
+			if (GetClientRect(mhWnd, &rect)) {
 				re.width = rect.right - rect.left;
 				re.height = rect.bottom - rect.top;
 				return re;
@@ -167,14 +167,14 @@ namespace iGui {
 
 	void Window::present()
 	{
-		auto re = swapChain->Present(0, 0);
+		auto re = mswapChain->Present(0, 0);
 	}
 
 	Painter::~Painter()
 	{
 #define R(p) if(p) p->Release()
-		R(device);
-		R(context);
+		R(mdevice);
+		R(mcontext);
 #undef R
 	}
 
@@ -188,123 +188,60 @@ namespace iGui {
 		*this = std::move(pt);
 	}
 
-
-
-	Painter::Painter()
-	{
-		init(nullptr, nullptr, false, iGuiInit.sampleCount, _internal::isDebug);
-	}
-
-	Painter::Painter(bool debugMode)
-	{
-		init(nullptr, nullptr, false, iGuiInit.sampleCount, debugMode);
-	}
-
-	Painter::Painter(Adapter& adapter) {
-		init(nullptr, adapter.adapter, false, iGuiInit.sampleCount, _internal::isDebug);
-	}
-
-
-	Painter::Painter(Adapter& adapter, bool debugMode)
-	{
-		init(nullptr, adapter.adapter, false, iGuiInit.sampleCount, debugMode);
-	}
-
-	Painter::Painter(Window& wnd, const Adapter& adapter) 
-	{
-		init(&wnd, adapter.adapter, false, iGuiInit.sampleCount, _internal::isDebug);
-	}
-
-	Painter::Painter(Window& wnd, const Adapter& adapter, bool debugMode) {
-		init(&wnd, adapter.adapter, false, iGuiInit.sampleCount, debugMode);
-	}
-
-	Painter& Painter::operator=(const Painter& pt)
-	{
-		releaseAll();
-
-		device = pt.device;
-		context = pt.context;
-		if(context)context->AddRef();
-		if(device)device->AddRef();
-		levelGet = pt.levelGet;
-		vertexElementNum = pt.vertexElementNum;
-		return *this;
-	}
-
-	Painter& Painter::operator=(Painter&& pt)
-	{
-		releaseAll();
-
-		device = pt.device;
-		context = pt.context;
-		levelGet = pt.levelGet;
-		pt.device = nullptr;
-		pt.context = nullptr;
-		levelGet = pt.levelGet;
-		vertexElementNum = pt.vertexElementNum;
-		return *this;
-	}
-
 	void Painter::set(const Viewport& vp)
 	{
-		context->RSSetViewports(1, &vp);
+		mcontext->RSSetViewports(1, &vp);
 	}
 
 	void Painter::setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY topology)
 	{
-		context->IASetPrimitiveTopology(topology);
+		mcontext->IASetPrimitiveTopology(topology);
 	}
 
 	void Painter::set(const VertexBuffer& buffer)
 	{
-		vertexElementNum = buffer.elementNum;
-		ID3D11Buffer* buffs[]{ buffer.vb };
-		UINT strides[]{ buffer.eleSize };
+		vertexElementNum = buffer.melementNum;
+		ID3D11Buffer* buffs[]{ buffer.mvertexBuffer };
+		UINT strides[]{ buffer.meleSize };
 		UINT offsets[]{ 0 };
-		context->IASetVertexBuffers(0, 1, buffs, strides, offsets);
+		mcontext->IASetVertexBuffers(0, 1, buffs, strides, offsets);
 	}
 
 	void Painter::set(InputLayout& layout)
 	{
-		context->IASetInputLayout(layout.layout);
+		mcontext->IASetInputLayout(layout.mlayout);
 	}
 
 	void Painter::setTarget(Window& wnd, DepthStencilBuffer& buff)
 	{
-		context->OMSetRenderTargets(1, &wnd.targetView, buff.dsView);
+		mcontext->OMSetRenderTargets(1, &wnd.mtargetView, buff.mdsView);
 	}
 
 
 
 	void Painter::set(VertexShader& shader)
 	{
-		context->VSSetShader(shader.vs, nullptr, 0);
+		mcontext->VSSetShader(shader.mvertexShader, nullptr, 0);
 	}
 
 	void Painter::set(PixelShader& shader)
 	{
-		context->PSSetShader(shader.ps,nullptr,0);
+		mcontext->PSSetShader(shader.mpixelShader,nullptr,0);
 	}
 
-	void Painter::draw()
-	{
-		context->Draw(vertexElementNum, 0);
-		
-	}
 
 	void Painter::clearTarget(Window& wnd)
 	{
 		FLOAT color[] = { 0,0,0,0 };
-		context->ClearRenderTargetView(wnd.targetView, color);
+		mcontext->ClearRenderTargetView(wnd.mtargetView, color);
 	}
 
 	void Painter::clearTarget(DepthStencilBuffer& buff, unsigned int buffType, float depth, uint8_t stencil)
 	{
-		context->ClearDepthStencilView(buff.dsView, buffType, depth, stencil);
+		mcontext->ClearDepthStencilView(buff.mdsView, buffType, depth, stencil);
 	}
 
-	void Painter::init(Window* wnd, IDXGIAdapter* adapter, bool fullScreen, int sampleCount, bool debugMode)
+	void Painter::_init(Window* wnd, IDXGIAdapter* adapter, bool fullScreen, int sampleCount, bool debugMode)
 	{
 		HRESULT hr;
 		releaseAll();
@@ -353,15 +290,15 @@ namespace iGui {
 
 				desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;		//指定用途
 				desc.BufferCount = 1;									//指定front buffer的数量
-				desc.OutputWindow = wnd->hWnd;								//指定输出窗口
+				desc.OutputWindow = wnd->mhWnd;								//指定输出窗口
 				desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;				//指定将画面传递到DWM的方式，DISCARD表示让系统自动选择
 
 				desc.Flags = 0;			//包含一些显示模式，兼容性，隐私安全的设置
 			}
 
 
-			if (wnd->swapChain) {
-				wnd->swapChain->Release();
+			if (wnd->mswapChain) {
+				wnd->mswapChain->Release();
 			}
 			
 			hr = D3D11CreateDeviceAndSwapChain(
@@ -369,22 +306,22 @@ namespace iGui {
 				driverType,										//硬渲染
 				NULL,															//软件模块，如果使用软件实现的话
 				flags,	//是否debug和单线程
-				levelsWant,														//想要的d3d11版本，是个数组，将会依次遍历，如果支持则立即返回
-				ARRAYSIZE(levelsWant),											//想要的d3d11版本数量
+				mlevelsWant,														//想要的d3d11版本，是个数组，将会依次遍历，如果支持则立即返回
+				ARRAYSIZE(mlevelsWant),											//想要的d3d11版本数量
 				D3D11_SDK_VERSION,												//必须是该值
 				&desc,
-				&wnd->swapChain,
-				&device,														//
-				&levelGet,														//得到的d3d11版本
-				&context
+				&wnd->mswapChain,
+				&mdevice,														//
+				&mlevelGet,														//得到的d3d11版本
+				&mcontext
 			);
 			if (FAILED(hr)) debug.error("Fail to D3D11CreateDeviceAndSwapChain", hr);
 
-			hr = wnd->swapChain->GetBuffer(0, IID_PPV_ARGS(&wnd->backBuffer));
+			hr = wnd->mswapChain->GetBuffer(0, IID_PPV_ARGS(&wnd->mbackBuffer));
 			if (FAILED(hr))debug.error("backBuffer创建失败", hr);
-			hr = device->CreateRenderTargetView(wnd->backBuffer, nullptr, &wnd->targetView);
+			hr = mdevice->CreateRenderTargetView(wnd->mbackBuffer, nullptr, &wnd->mtargetView);
 			if (FAILED(hr)) debug.error("targetView创建失败", hr);
-			wnd->painter = *this;
+			wnd->mpainter = *this;
 		}
 		else {
 			hr = D3D11CreateDevice(
@@ -392,16 +329,39 @@ namespace iGui {
 				driverType,										//硬渲染
 				NULL,															//软件模块，如果使用软件实现的话
 				flags,	//是否debug和单线程
-				levelsWant,														//想要的d3d11版本，是个数组，将会依次遍历，如果支持则立即返回
-				ARRAYSIZE(levelsWant),											//想要的d3d11版本数量
+				mlevelsWant,														//想要的d3d11版本，是个数组，将会依次遍历，如果支持则立即返回
+				ARRAYSIZE(mlevelsWant),											//想要的d3d11版本数量
 				D3D11_SDK_VERSION,												//必须是该值
-				&device,														//
-				&levelGet,														//得到的d3d11版本
-				&context														//
+				&mdevice,														//
+				&mlevelGet,														//得到的d3d11版本
+				&mcontext														//
 			);
 			if (FAILED(hr)) debug.error("Fail to D3D11CreateDevice", hr);
 		}
 		
+	}
+
+	void Painter::copyFrom(const Painter& pt)
+	{
+		releaseAll();
+		mdevice = pt.mdevice;
+		mcontext = pt.mcontext;
+		if (mcontext)mcontext->AddRef();
+		if (mdevice)mdevice->AddRef();
+		mlevelGet = pt.mlevelGet;
+		vertexElementNum = pt.vertexElementNum;
+	}
+
+	void Painter::moveFrom(Painter&& pt)
+	{
+		releaseAll();
+		mdevice = pt.mdevice;
+		mcontext = pt.mcontext;
+		mlevelGet = pt.mlevelGet;
+		pt.mdevice = nullptr;
+		pt.mcontext = nullptr;
+		mlevelGet = pt.mlevelGet;
+		vertexElementNum = pt.vertexElementNum;
 	}
 
 
@@ -410,14 +370,14 @@ namespace iGui {
 
 	Adapter::~Adapter()
 	{
-		if (adapter)adapter->Release();
+		if (madapter)madapter->Release();
 	}
 
 	bool Adapter::init(int index)
 	{
 		using _internal::dxgiFactory;
 		HRESULT hr;
-		hr = dxgiFactory->EnumAdapters(index, &adapter);
+		hr = dxgiFactory->EnumAdapters(index, &madapter);
 		if (FAILED(hr)) return false;
 		return true;
 	}
@@ -433,8 +393,8 @@ namespace iGui {
 	{
 		HRESULT hr;
 		D3D11_TEXTURE2D_DESC desc;
-		wnd.backBuffer->GetDesc(&desc);
-		auto device = wnd.painter.device;
+		wnd.mbackBuffer->GetDesc(&desc);
+		auto device = wnd.mpainter.mdevice;
 
 		//uncertain
 		desc.MipLevels = 1;
@@ -447,46 +407,46 @@ namespace iGui {
 		desc.CPUAccessFlags = 0;
 		desc.MiscFlags = 0;	
 
-		hr = device->CreateTexture2D(&desc, nullptr, &dsBuff);
+		hr = device->CreateTexture2D(&desc, nullptr, &mdsBuff);
 		if (FAILED(hr))debug.error("Fail to CreateTexture2D", hr);
-		device->CreateDepthStencilView(dsBuff, nullptr, &dsView);
+		device->CreateDepthStencilView(mdsBuff, nullptr, &mdsView);
 		if (FAILED(hr))debug.error("Fail to CreateDepthStencilView", hr);
 	}
 
 	void DepthStencilBuffer::moveFrom(DepthStencilBuffer&& buff)
 	{
 		releaseAll();
-		dsBuff = buff.dsBuff;
-		dsView = buff.dsView;
-		buff.dsBuff = nullptr;
-		buff.dsView = nullptr;
+		mdsBuff = buff.mdsBuff;
+		mdsView = buff.mdsView;
+		buff.mdsBuff = nullptr;
+		buff.mdsView = nullptr;
 	}
 
 	VertexShader::VertexShader(Painter& painter, std::wstring path)
 	{
-		HRESULT hr = D3DReadFileToBlob(path.c_str(), &vsFile);
+		HRESULT hr = D3DReadFileToBlob(path.c_str(), &mvsFile);
 		if (FAILED(hr)) { return; }
 		
-		hr = painter.device->CreateVertexShader(vsFile->GetBufferPointer(), vsFile->GetBufferSize(), nullptr, &vs);
-		if (FAILED(hr)) { vsFile->Release(); vsFile = nullptr; return; }
+		hr = painter.mdevice->CreateVertexShader(mvsFile->GetBufferPointer(), mvsFile->GetBufferSize(), nullptr, &mvertexShader);
+		if (FAILED(hr)) { mvsFile->Release(); mvsFile = nullptr; return; }
 	}
 
 	void VertexShader::copyFrom(const VertexShader& v)
 	{
 		releaseAll();
-		vsFile = v.vsFile;
-		vs = v.vs;
-		if(vsFile) vsFile->AddRef();
-		if(vs) vs->AddRef();
+		mvsFile = v.mvsFile;
+		mvertexShader = v.mvertexShader;
+		if(mvsFile) mvsFile->AddRef();
+		if(mvertexShader) mvertexShader->AddRef();
 	}
 
 	void VertexShader::moveFrom(VertexShader&& v)
 	{
 		releaseAll();
-		vs = v.vs;
-		vsFile = v.vsFile;
-		v.vs = nullptr;
-		v.vsFile = nullptr;
+		mvertexShader = v.mvertexShader;
+		mvsFile = v.mvsFile;
+		v.mvertexShader = nullptr;
+		v.mvsFile = nullptr;
 	}
 
 	PixelShader::PixelShader(Painter& painter, std::wstring path)
@@ -496,7 +456,7 @@ namespace iGui {
 		hr = D3DReadFileToBlob(path.c_str(), &psFile);
 		if (FAILED(hr)) return;
 
-		hr = painter.device->CreatePixelShader(psFile->GetBufferPointer(), psFile->GetBufferSize(), NULL, &ps);
+		hr = painter.mdevice->CreatePixelShader(psFile->GetBufferPointer(), psFile->GetBufferSize(), NULL, &mpixelShader);
 		if (FAILED(hr)) return;
 		psFile->Release();
 	}
@@ -504,29 +464,29 @@ namespace iGui {
 	void PixelShader::moveFrom(PixelShader&& p)
 	{
 		releaseAll();
-		ps = p.ps;
-		p.ps = nullptr;
+		mpixelShader = p.mpixelShader;
+		p.mpixelShader = nullptr;
 	}
 
 	InputLayout::InputLayout(Painter& painter, VertexShader& vs, InputElementDesc* arr, int eleNum)
 	{
 		HRESULT hr;
-		hr = painter.device->CreateInputLayout(arr, eleNum, vs.vsFile->GetBufferPointer(), vs.vsFile->GetBufferSize(), &layout);
+		hr = painter.mdevice->CreateInputLayout(arr, eleNum, vs.mvsFile->GetBufferPointer(), vs.mvsFile->GetBufferSize(), &mlayout);
 		if (FAILED(hr))debug.error("Fail to CreateInputLayout");
 	}
 
 	void InputLayout::moveFrom(InputLayout&& ly)
 	{
 		releaseAll();
-		layout = ly.layout;
-		ly.layout = nullptr;
+		mlayout = ly.mlayout;
+		ly.mlayout = nullptr;
 	}
 
 	void VertexBuffer::initOther(Painter& painter, void* data, int eleNum, const VertexBufferDesc& desc)
 	{
-		elementNum = eleNum;
+		melementNum = eleNum;
 		D3D11_BUFFER_DESC d3dDesc{};
-		d3dDesc.ByteWidth = elementNum*eleSize;
+		d3dDesc.ByteWidth = melementNum*meleSize;
 		d3dDesc.Usage = desc.usage;
 		d3dDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		d3dDesc.CPUAccessFlags = desc.cpuAccessFlags;
@@ -538,26 +498,26 @@ namespace iGui {
 		srData.pSysMem = data;
 
 		HRESULT hr;
-		hr = painter.device->CreateBuffer(&d3dDesc, &srData, &vb);
+		hr = painter.mdevice->CreateBuffer(&d3dDesc, &srData, &mvertexBuffer);
 		if (FAILED(hr)) debug.error("Fail to CreateBuffer", hr);
 	}
 
 	void VertexBuffer::copyFrom(const VertexBuffer& vbuff)
 	{
 		releaseAll();
-		vb = vbuff.vb;
-		if(vb)vb->AddRef();
-		eleSize = vbuff.eleSize;
-		elementNum = vbuff.elementNum;
+		mvertexBuffer = vbuff.mvertexBuffer;
+		if(mvertexBuffer)mvertexBuffer->AddRef();
+		meleSize = vbuff.meleSize;
+		melementNum = vbuff.melementNum;
 	}
 
 	void VertexBuffer::moveFrom(VertexBuffer&& vbuff)
 	{
 		releaseAll();
-		vb = vbuff.vb;
-		vbuff.vb = nullptr;
-		eleSize = vbuff.eleSize;
-		elementNum = vbuff.elementNum;
+		mvertexBuffer = vbuff.mvertexBuffer;
+		vbuff.mvertexBuffer = nullptr;
+		meleSize = vbuff.meleSize;
+		melementNum = vbuff.melementNum;
 	}
 
 

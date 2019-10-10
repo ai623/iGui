@@ -1,6 +1,7 @@
 #include "gui.h"
 #include "file.h"
 
+//iCommon::Debug debug;
 using namespace iGui;
 
 struct MyWindow :Window {

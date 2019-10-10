@@ -13,9 +13,13 @@
 #include "debug.h"
 #include "shape.h"
 
+#define _RELEASE_COM_PTR(p) if(p) {p->Release(); p = nullptr;}
+
 namespace iGui {
 	struct Painter;
 	namespace _internal {
+		extern bool isDebug;
+
 		LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 		inline ID3D11Device* getDeviceFrom(Painter& pt);
@@ -23,9 +27,7 @@ namespace iGui {
 	}
 	extern iCommon::Debug debug;
 
-	struct Nothing {
-
-	};
+	struct Nothing {};
 
 	struct DefaultConfigure {
 		inline DefaultConfigure() {
@@ -89,7 +91,7 @@ namespace iGui {
 		bool init(int index = 0);
 
 	private:
-		IDXGIAdapter* adapter = nullptr;
+		IDXGIAdapter* madapter = nullptr;
 		friend struct Painter;
 	};
 
@@ -103,20 +105,25 @@ namespace iGui {
 
 	struct Painter {
 		virtual ~Painter();
+		Painter(Nothing no) {};
 		Painter(const Painter& pt);
 		Painter(Painter&& pt);
-		Painter(Nothing no) {};
-		Painter();
-		Painter(bool debugMode);
-		Painter(Adapter& adapter);
-		Painter(Adapter& adapter, bool debugMode);
-		Painter(Window& wnd, const Adapter& adapter);
-		Painter(Window& wnd, const Adapter& adapter, bool debugMode);
+		Painter() {_init(nullptr, nullptr, false, iGuiInit.sampleCount, _internal::isDebug);}
+		Painter(bool debugMode) {_init(nullptr, nullptr, false, iGuiInit.sampleCount, debugMode);}
+		Painter(Adapter& adapter) {_init(nullptr, adapter.madapter, false, iGuiInit.sampleCount, _internal::isDebug);}
+		Painter(Adapter& adapter, bool debugMode) {_init(nullptr, adapter.madapter, false, iGuiInit.sampleCount, debugMode);}
+		Painter(Window& wnd, const Adapter& adapter) {_init(&wnd, adapter.madapter, false, iGuiInit.sampleCount, _internal::isDebug);}
+		Painter(Window& wnd, const Adapter& adapter, bool debugMode) {_init(&wnd, adapter.madapter, false, iGuiInit.sampleCount, debugMode);}
 
-		Painter& operator = (const Painter& pt);
-		Painter& operator = (Painter&& pt);
+		Painter& operator = (const Painter& pt) { copyFrom(pt); return *this; }
+		Painter& operator = (Painter&& pt) { moveFrom(std::move(pt)); return *this; }
 
-		
+		void init() { _init(nullptr, nullptr, false, iGuiInit.sampleCount, _internal::isDebug); }
+		void init(bool debugMode) { _init(nullptr, nullptr, false, iGuiInit.sampleCount, debugMode); }
+		void init(Adapter& adapter) { _init(nullptr, adapter.madapter, false, iGuiInit.sampleCount, _internal::isDebug); }
+		void init(Adapter& adapter, bool debugMode) { _init(nullptr, adapter.madapter, false, iGuiInit.sampleCount, debugMode); }
+		void init(Window& wnd, const Adapter& adapter) { _init(&wnd, adapter.madapter, false, iGuiInit.sampleCount, _internal::isDebug); }
+		void init(Window& wnd, const Adapter& adapter, bool debugMode) { _init(&wnd, adapter.madapter, false, iGuiInit.sampleCount, debugMode); }
 
 		void set(const Viewport& vp);
 		void setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY topology);
@@ -126,31 +133,34 @@ namespace iGui {
 		void set(VertexShader& shader);
 		void set(PixelShader& shader);
 
-		void draw();
+		void draw() { draw(0); }
+		void draw(int startLocation) { mcontext->Draw(vertexElementNum, startLocation); }
 
 		void clearTarget(Window& wnd);
 
-		enum {
+		enum CLEAR_FLAG{
 			CLEAR_DEPTH = D3D11_CLEAR_DEPTH,
 			CLEAR_STENCIL = D3D11_CLEAR_STENCIL
 		};
 		void clearTarget(DepthStencilBuffer& buff, unsigned int buffType, float depth, uint8_t stencil);
 
 	private:
-		void init(Window* wnd, IDXGIAdapter* adapter, bool fullScreen, int sampleCount, bool debugMode);
+		void _init(Window* wnd, IDXGIAdapter* adapter, bool fullScreen, int sampleCount, bool debugMode);
+		void copyFrom(const Painter& pt);
+		void moveFrom(Painter&& pt);
 
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(device)R(context)
+#define R _RELEASE_COM_PTR
+			R(mdevice)R(mcontext)
 #undef R
 		}
 
-		ID3D11Device* device = nullptr;
-		ID3D11DeviceContext* context = nullptr;
+		ID3D11Device* mdevice = nullptr;
+		ID3D11DeviceContext* mcontext = nullptr;
 		UINT vertexElementNum = 0;
-		D3D_FEATURE_LEVEL levelGet;
+		D3D_FEATURE_LEVEL mlevelGet;
 
-		static const D3D_FEATURE_LEVEL levelsWant[];
+		static const D3D_FEATURE_LEVEL mlevelsWant[];
 
 		friend struct VertexBuffer;
 		friend struct DepthStencilBuffer;
@@ -163,12 +173,11 @@ namespace iGui {
 	};
 
 	namespace _internal {
-		inline ID3D11Device* getDeviceFrom(Painter& pt) {
-			return pt.device;
+		inline ID3D11Device* getDeviceFrom(Painter& pt){
+			return pt.mdevice;
 		}
-
 		inline ID3D11DeviceContext* getContextFrom(Painter& pt) {
-			return pt.context;
+			return pt.mcontext;
 		}
 	}
 
@@ -180,7 +189,7 @@ namespace iGui {
 
 		Rect<int> getWindowRect() const;
 		static int getWindowsNum();
-		Painter& getPainter() { return painter; }
+		Painter& getPainter() { return mpainter; }
 
 		virtual void whenCreate() {};
 		virtual void whenDestroy() {};
@@ -188,15 +197,15 @@ namespace iGui {
 
 		void present();
 	private:
-		HWND hWnd = NULL;
-		Painter painter = Painter(Nothing());
-		IDXGISwapChain* swapChain = nullptr;
-		ID3D11Texture2D* backBuffer = nullptr;
-		ID3D11RenderTargetView* targetView = nullptr;
+		HWND mhWnd = NULL;
+		Painter mpainter = Painter(Nothing());
+		IDXGISwapChain* mswapChain = nullptr;
+		ID3D11Texture2D* mbackBuffer = nullptr;
+		ID3D11RenderTargetView* mtargetView = nullptr;
 
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(swapChain) R(backBuffer)R(targetView)
+#define R _RELEASE_COM_PTR
+			R(mswapChain) R(mbackBuffer)R(mtargetView)
 #undef R
 		}
 
@@ -224,13 +233,13 @@ namespace iGui {
 		template<typename T>
 		inline VertexBuffer(Painter& painter, T* data, int eleNum, const VertexBufferDesc& desc) {
 			if (sizeof(T) > 255)debug.error("Too Large Structure Type");
-			eleSize = sizeof(T);
+			meleSize = sizeof(T);
 			initOther(painter, data, eleNum, desc);
 		}
 	private:
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(vb);
+#define R _RELEASE_COM_PTR
+			R(mvertexBuffer);
 #undef R
 		}
 
@@ -239,9 +248,9 @@ namespace iGui {
 		void copyFrom(const VertexBuffer& vbuff);
 		void moveFrom(VertexBuffer&& vbuff);
 
-		ID3D11Buffer* vb = nullptr;
-		UINT eleSize = 0;
-		int elementNum = 0;
+		ID3D11Buffer* mvertexBuffer = nullptr;
+		UINT meleSize = 0;
+		int melementNum = 0;
 		
 		friend struct Painter;
 	};
@@ -255,13 +264,13 @@ namespace iGui {
 		DepthStencilBuffer& operator=(DepthStencilBuffer&& buff) { moveFrom(std::move(buff)); return *this; }
 
 	private:
-		ID3D11Texture2D* dsBuff = nullptr;
-		ID3D11DepthStencilView* dsView = nullptr;
+		ID3D11Texture2D* mdsBuff = nullptr;
+		ID3D11DepthStencilView* mdsView = nullptr;
 
 		void moveFrom(DepthStencilBuffer&& buff);
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(dsBuff) R(dsView)
+#define R _RELEASE_COM_PTR
+			R(mdsBuff) R(mdsView)
 #undef R
 		}
 		friend struct Painter;
@@ -279,14 +288,14 @@ namespace iGui {
 
 	private:
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(layout);
+#define R _RELEASE_COM_PTR
+			R(mlayout);
 #undef R
 		}
 
 		void moveFrom(InputLayout&& ly);
 
-		ID3D11InputLayout* layout = nullptr;
+		ID3D11InputLayout* mlayout = nullptr;
 		
 		friend struct Painter;
 	};
@@ -301,14 +310,14 @@ namespace iGui {
 		VertexShader& operator = (const VertexShader& v) { copyFrom(v); return *this; }
 		VertexShader& operator = (VertexShader&& v) { moveFrom(std::move(v)); return *this; }
 
-		bool hasLoaded() { return vs; }
+		bool hasLoaded() { return mvertexShader; }
 	private:
-		ID3DBlob* vsFile = nullptr;
-		ID3D11VertexShader* vs = nullptr;
+		ID3DBlob* mvsFile = nullptr;
+		ID3D11VertexShader* mvertexShader = nullptr;
 
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(vs)R(vsFile)
+#define R _RELEASE_COM_PTR
+			R(mvertexShader)R(mvsFile)
 #undef R
 		}
 
@@ -328,16 +337,16 @@ namespace iGui {
 		
 		PixelShader& operator = (PixelShader&& p) { moveFrom(std::move(p)); return *this; }
 
-		bool hasLoaded() { return ps; }
+		bool hasLoaded() { return mpixelShader; }
 	private:
 		inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-			R(ps)
+#define R _RELEASE_COM_PTR
+			R(mpixelShader)
 #undef R
 		}
 		void moveFrom(PixelShader&& p);
 
-		ID3D11PixelShader* ps = nullptr;
+		ID3D11PixelShader* mpixelShader = nullptr;
 		friend struct Painter;
 	};
 
@@ -359,3 +368,5 @@ namespace iGui {
 
 
 int guiMain();
+
+#undef _RELEASE_COM_PTR
