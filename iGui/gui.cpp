@@ -1,17 +1,16 @@
 #include "gui.h"
 
 namespace iGui {
-
 	DefaultConfigure defaultConfigure;
 	iGuiInitializer iGuiInit;
 	System system;
 	Exec exec;
-	iCommon::Debug debug;
 
 	int Window::wndNum = 0;
 	const D3D_FEATURE_LEVEL Painter::mlevelsWant[] = { D3D_FEATURE_LEVEL_11_0};
 
 	namespace _internal {
+		iCommon::Debug debug;
 		HINSTANCE hInstance;
 		PWSTR pCmdLine;
 		int nCmdShow;
@@ -59,7 +58,7 @@ namespace iGui {
 			return DefWindowProc(hWnd, msg, wParam, lParam);
 		}
 	}
-
+	using _internal::debug;
 
 
 	void iGuiInitializer::enableMultiThread()

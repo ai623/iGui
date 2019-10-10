@@ -18,6 +18,7 @@
 namespace iGui {
 	struct Painter;
 	namespace _internal {
+		extern iCommon::Debug debug;
 		extern bool isDebug;
 
 		LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -25,7 +26,7 @@ namespace iGui {
 		inline ID3D11Device* getDeviceFrom(Painter& pt);
 		inline ID3D11DeviceContext* getContextFrom(Painter& pt);
 	}
-	extern iCommon::Debug debug;
+
 
 	struct Nothing {};
 
@@ -232,7 +233,7 @@ namespace iGui {
 		virtual ~VertexBuffer() { releaseAll(); }
 		template<typename T>
 		inline VertexBuffer(Painter& painter, T* data, int eleNum, const VertexBufferDesc& desc) {
-			if (sizeof(T) > 255)debug.error("Too Large Structure Type");
+			if (sizeof(T) > 255)_internal::debug.error("Too Large Structure Type");
 			meleSize = sizeof(T);
 			initOther(painter, data, eleNum, desc);
 		}
