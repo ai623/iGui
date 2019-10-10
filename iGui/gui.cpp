@@ -208,16 +208,6 @@ namespace iGui {
 #undef R
 	}
 
-	Painter::Painter(const Painter& pt)
-	{
-		(*this) = pt;
-	}
-
-	Painter::Painter(Painter&& pt)
-	{
-		*this = std::move(pt);
-	}
-
 	void Painter::set(const Viewport& vp)
 	{
 		mcontext->RSSetViewports(1, &vp);
@@ -228,13 +218,19 @@ namespace iGui {
 		mcontext->IASetPrimitiveTopology(topology);
 	}
 
-	void Painter::set(const VertexBuffer& buffer)
+	void Painter::set(const VertexBuffer& buffer, int slot)
 	{
-		vertexElementNum = buffer.melementNum;
-		ID3D11Buffer* buffs[]{ buffer.mvertexBuffer };
+		mvertexEleNum = buffer.meleNum;
+		ID3D11Buffer* buffs[]{ buffer.mBuffer };
 		UINT strides[]{ buffer.meleSize };
 		UINT offsets[]{ 0 };
-		mcontext->IASetVertexBuffers(0, 1, buffs, strides, offsets);
+		mcontext->IASetVertexBuffers(slot, 1, buffs, strides, offsets);
+	}
+
+	void Painter::set(const IndexBuffer& buffer, int offset)
+	{
+		mindexEleNum = buffer.meleNum;
+		mcontext->IASetIndexBuffer(buffer.mBuffer, buffer.mdxgiFormat, offset);
 	}
 
 	void Painter::set(InputLayout& layout)
@@ -401,7 +397,8 @@ namespace iGui {
 		if (mcontext)mcontext->AddRef();
 		if (mdevice)mdevice->AddRef();
 		mlevelGet = pt.mlevelGet;
-		vertexElementNum = pt.vertexElementNum;
+		mvertexEleNum = pt.mvertexEleNum;
+		mindexEleNum = pt.mindexEleNum;
 	}
 
 	void Painter::moveFrom(Painter&& pt)
@@ -413,7 +410,8 @@ namespace iGui {
 		pt.mdevice = nullptr;
 		pt.mcontext = nullptr;
 		mlevelGet = pt.mlevelGet;
-		vertexElementNum = pt.vertexElementNum;
+		mvertexEleNum = pt.mvertexEleNum;
+		mindexEleNum = pt.mindexEleNum;
 	}
 
 
@@ -537,11 +535,11 @@ namespace iGui {
 		ly.mlayout = nullptr;
 	}
 
-	void VertexBuffer::initOther(Painter& painter, void* data, int eleNum, const VertexBufferDesc& desc)
+	void VertexBuffer::initOther(Painter& painter, void* data, int eleNum, const BufferDesc& desc)
 	{
-		melementNum = eleNum;
+		meleNum = eleNum;
 		D3D11_BUFFER_DESC d3dDesc{};
-		d3dDesc.ByteWidth = melementNum*meleSize;
+		d3dDesc.ByteWidth = meleNum*meleSize;
 		d3dDesc.Usage = desc.usage;
 		d3dDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		d3dDesc.CPUAccessFlags = desc.cpuAccessFlags;
@@ -553,26 +551,26 @@ namespace iGui {
 		srData.pSysMem = data;
 
 		HRESULT hr;
-		hr = painter.mdevice->CreateBuffer(&d3dDesc, &srData, &mvertexBuffer);
-		if (FAILED(hr)) debug.error("Fail to CreateBuffer", hr);
+		hr = painter.mdevice->CreateBuffer(&d3dDesc, &srData, &mBuffer);
+		if (FAILED(hr)) debug.error("Fail to create VertexBuffer", hr);
 	}
 
 	void VertexBuffer::copyFrom(const VertexBuffer& vbuff)
 	{
 		releaseAll();
-		mvertexBuffer = vbuff.mvertexBuffer;
-		if(mvertexBuffer)mvertexBuffer->AddRef();
+		mBuffer = vbuff.mBuffer;
+		if(mBuffer)mBuffer->AddRef();
 		meleSize = vbuff.meleSize;
-		melementNum = vbuff.melementNum;
+		meleNum = vbuff.meleNum;
 	}
 
 	void VertexBuffer::moveFrom(VertexBuffer&& vbuff)
 	{
 		releaseAll();
-		mvertexBuffer = vbuff.mvertexBuffer;
-		vbuff.mvertexBuffer = nullptr;
+		mBuffer = vbuff.mBuffer;
+		vbuff.mBuffer = nullptr;
 		meleSize = vbuff.meleSize;
-		melementNum = vbuff.melementNum;
+		meleNum = vbuff.meleNum;
 	}
 
 
@@ -580,6 +578,26 @@ namespace iGui {
 	Rect<int> System::getScreenResolution()
 	{
 		return Rect<int>{GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)};
+	}
+
+	void IndexBuffer::initOther(Painter& painter, void* data, int eleNum, const BufferDesc& desc)
+	{
+		meleNum = eleNum;
+		D3D11_BUFFER_DESC d3dDesc{};
+		d3dDesc.ByteWidth = meleNum * meleSize;
+		d3dDesc.Usage = desc.usage;
+		d3dDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		d3dDesc.CPUAccessFlags = desc.cpuAccessFlags;
+		d3dDesc.MiscFlags = desc.miscFlags;
+		//d3dDesc.StructureByteStride = 0;
+		//d3dDesc.StructureByteStride = eleSize;
+
+		D3D11_SUBRESOURCE_DATA srData{};
+		srData.pSysMem = data;
+
+		HRESULT hr;
+		hr = painter.mdevice->CreateBuffer(&d3dDesc, &srData, &mBuffer);
+		if (FAILED(hr)) debug.error("Fail to CreateBuffer", hr);
 	}
 
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include <initializer_list>
 #include <stdint.h>
+#include <type_traits>
 
 #include "common.h"
 #include "debug.h"
@@ -99,6 +100,7 @@ namespace iGui {
 	struct Window;
 	using Viewport = D3D11_VIEWPORT;
 	struct VertexBuffer;
+	struct IndexBuffer;
 	struct DepthStencilBuffer;
 	struct InputLayout;
 	struct VertexShader;
@@ -107,8 +109,8 @@ namespace iGui {
 	struct Painter {
 		virtual ~Painter();
 		Painter(Nothing no) {};
-		Painter(const Painter& pt);
-		Painter(Painter&& pt);
+		Painter(const Painter& pt) { copyFrom(pt); }
+		Painter(Painter&& pt) { moveFrom(std::move(pt)); }
 		Painter() {_init(nullptr, nullptr, false, _internal::sampleCount, _internal::isDebug);}
 		Painter(bool debugMode) {_init(nullptr, nullptr, false, _internal::sampleCount, debugMode);}
 		Painter(Adapter& adapter) {_init(nullptr, adapter.madapter, false, _internal::sampleCount, _internal::isDebug);}
@@ -128,15 +130,18 @@ namespace iGui {
 
 		void set(const Viewport& vp);
 		void setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY topology);
-		void set(const VertexBuffer& buffer);
 		void set(InputLayout& layout);
+		void set(const VertexBuffer& buffer, int slot = 0);
+		void set(const IndexBuffer& buffer, int offset = 0);
 		void setTarget(Window& wnd, DepthStencilBuffer& buff);
 		void set(VertexShader& shader);
 		void set(PixelShader& shader);
-
-		void draw() { draw(0); }
-		void draw(int startLocation) { mcontext->Draw(vertexElementNum, startLocation); }
-
+		
+		void drawVertex() { drawVertex(0); }
+		void drawVertex(unsigned int startLocation) { mcontext->Draw(mvertexEleNum, startLocation); }
+		void drawIndex() { mcontext->DrawIndexed(mindexEleNum, 0, 0); }
+		void drawIndex(unsigned int indexNum, unsigned int startLocation, int valueAdd) { mcontext->DrawIndexed(indexNum, startLocation, valueAdd); }
+		
 		void clearTarget(Window& wnd);
 
 		enum CLEAR_FLAG{
@@ -148,7 +153,8 @@ namespace iGui {
 	private:
 		ID3D11Device* mdevice = nullptr;
 		ID3D11DeviceContext* mcontext = nullptr;
-		UINT vertexElementNum = 0;
+		unsigned int mvertexEleNum = 0;
+		unsigned int mindexEleNum = 0;
 		D3D_FEATURE_LEVEL mlevelGet;
 
 		static const D3D_FEATURE_LEVEL mlevelsWant[];
@@ -167,6 +173,7 @@ namespace iGui {
 
 		friend struct Window;
 		friend struct VertexBuffer;
+		friend struct IndexBuffer;
 		friend struct DepthStencilBuffer;
 		friend struct InputLayout;
 		friend struct VertexShader;
@@ -226,7 +233,7 @@ namespace iGui {
 		friend struct DepthStencilBuffer;
 	};
 
-	struct VertexBufferDesc {
+	struct BufferDesc {
 		D3D11_USAGE usage;
 		UINT cpuAccessFlags;
 		UINT miscFlags;
@@ -242,35 +249,73 @@ namespace iGui {
 
 		virtual ~VertexBuffer() { releaseAll(); }
 		template<typename T>
-		inline VertexBuffer(Painter& painter, T* data, int eleNum, const VertexBufferDesc& desc) {
+		inline VertexBuffer(Painter& painter, T* data, int eleNum, const BufferDesc& desc) {
 			_init(painter, data, eleNum, desc);
 		}
 
 		template <typename T>
-		inline void init(Painter& painter, T* data, int eleNum, const VertexBufferDesc& desc){ _init(painter, data, eleNum, desc); }
+		inline void init(Painter& painter, T* data, int eleNum, const BufferDesc& desc){ _init(painter, data, eleNum, desc); }
+	
 	private:
+		ID3D11Buffer* mBuffer = nullptr;
+		UINT meleSize = 0;
+		int meleNum = 0;
+		
 		inline void releaseAll() {
 #define R RELEASE_COM_PTR
-			R(mvertexBuffer);
+			R(mBuffer);
 #undef R
 		}
 		template<typename T>
-		inline void _init(Painter& painter, T* data, int eleNum, const VertexBufferDesc& desc) {
+		inline void _init(Painter& painter, T* data, int eleNum, const BufferDesc& desc) {
+			static_assert(sizeof(T) < 256, "Too large Type");
 			releaseAll();
-			if (sizeof(T) > 255)_internal::debug.error("Too Large Structure Type");
 			meleSize = sizeof(T);
 			initOther(painter, data, eleNum, desc);
 		}
 
-		void initOther(Painter& painter, void* data, int eleNum, const VertexBufferDesc& desc);
+		void initOther(Painter& painter, void* data, int eleNum, const BufferDesc& desc);
 
 		void copyFrom(const VertexBuffer& vbuff);
 		void moveFrom(VertexBuffer&& vbuff);
+		friend struct Painter;
+	};
 
-		ID3D11Buffer* mvertexBuffer = nullptr;
+	struct IndexBuffer {
+		~IndexBuffer() { releaseAll(); }
+		IndexBuffer(Nothing) {}
+
+		template<typename T>
+		IndexBuffer(Painter& painter, T* data, int eleNum, const BufferDesc& desc) { _init(painter, data, eleNum, desc); }
+		template<typename T>
+		void init(Painter& painter, T* data, int eleNum, const BufferDesc& desc){ _init(painter, data, eleNum, desc); }
+	private:
+		ID3D11Buffer* mBuffer = nullptr;
 		UINT meleSize = 0;
-		int melementNum = 0;
+		int meleNum = 0;
+		DXGI_FORMAT mdxgiFormat;
+
+		inline void releaseAll() {
+#define R RELEASE_COM_PTR
+			R(mBuffer);
+#undef R
+		}
 		
+		template<typename T>
+		void _init(Painter& painter, T* data, int eleNum, const BufferDesc& desc) {
+			static_assert(std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value, "Only uint16_t or uint32_t are valid type");
+			if (std::is_same<T, uint16_t>::value) {
+				mdxgiFormat = DXGI_FORMAT_R16_UINT;
+			}
+			else {
+				mdxgiFormat = DXGI_FORMAT_R32_UINT;
+			}
+			releaseAll();
+			meleSize = sizeof(T);
+			initOther(painter, data, eleNum, desc);
+		}
+
+		void initOther(Painter& painter, void* data, int eleNum, const BufferDesc& desc);
 		friend struct Painter;
 	};
 
@@ -378,6 +423,14 @@ namespace iGui {
 
 		friend struct Painter;
 	};
+
+
+
+
+
+
+
+
 
 	struct PainterBackup;
 

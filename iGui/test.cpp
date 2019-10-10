@@ -24,7 +24,7 @@ struct MyWindow :Window {
 		layout.init(painter, vertexShader, ieDesc, 1);
 		dsBuff.init(*this);
 
-		VertexBufferDesc desc{};
+		BufferDesc desc{};
 		desc.usage = D3D11_USAGE_IMMUTABLE;
 
 		struct Vertex {
@@ -33,11 +33,19 @@ struct MyWindow :Window {
 			float z;
 		};
 
-		Vertex arr[]{
+		Vertex vertices[]{
 			{ 0.0f, 0.5f, 0.5f },
 			{0.5f, -0.5f, 0.5f },
 			{-0.5f, -0.5f, 0.5f}
 		};
+		vertexBuffer.init(painter, vertices, 3, desc);
+
+		uint16_t indices[]{
+			0,1,2
+		};
+		indexBuffer.init(painter, indices, 3, desc);
+	
+
 
 		auto rect = getWindowRect();
 
@@ -45,13 +53,13 @@ struct MyWindow :Window {
 			0,0,(FLOAT)rect.width,(FLOAT)rect.height,0,1
 		};
 
-		vertexBuffer.init(painter, arr, 3, desc);
 
 		painter.set(vp);
 		painter.setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		painter.setTarget(*this, dsBuff);
 		painter.set(layout);
 		painter.set(vertexShader);
+		painter.set(indexBuffer);
 		painter.set(pixelShader);
 		painter.set(vertexBuffer);
 	}
@@ -67,7 +75,8 @@ struct MyWindow :Window {
 		Painter& painter = getPainter();
 		painter.clearTarget(*this);
 		painter.clearTarget(dsBuff, Painter::CLEAR_DEPTH| Painter::CLEAR_STENCIL, 1, 0);
-		painter.draw();
+		//painter.drawIndex();
+		painter.drawVertex();
 		present();
 	}
 
@@ -77,6 +86,7 @@ private:
 	InputLayout layout = InputLayout(Nothing());
 	DepthStencilBuffer dsBuff = DepthStencilBuffer(Nothing());
 	VertexBuffer vertexBuffer = VertexBuffer(Nothing());
+	IndexBuffer indexBuffer = IndexBuffer(Nothing());
 };
 
 int guiMain() {
