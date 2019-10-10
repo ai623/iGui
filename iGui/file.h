@@ -1,34 +1,52 @@
 #pragma once
-#include <d3d11.h>
 #include <string>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include "debug.h"
+
 namespace iCommon {
-	namespace FileType {
-		enum FileType{
-			D3dShader
-		};
+	struct FileInitializer {
+		void operator () ();
 	};
+	extern FileInitializer fileInit;
 
 	struct File {
-		void load(std::string path);
-		const std::string& getPath() const { return path; }
+		virtual ~File() {};
+		virtual const std::string& getPath()const = 0;
+		virtual bool open(const std::string& path) = 0;
+		virtual void close() = 0;
+		virtual bool isOpen() const = 0;
+	};
+
+	struct ByteFile {
+
+	};
+
+	struct TextFile {
+
+	};
+
+	struct ImageFile {
+
+	};
+
+	struct FontFile :File{
+		using EncodingType = decltype(FT_ENCODING_UNICODE);
+		~FontFile();
+
+		virtual const std::string& getPath()const { return mpath; }
+		virtual bool open(const std::string& path);
+		virtual void close();
+		virtual bool isOpen() const { return mfacesNum; }
+		int getFontNum() const { return mfacesNum; }
+		bool setEncodingType(EncodingType et);
+
 	private:
-		struct FileInterface {
-			virtual ~FileInterface() { }
-		};
-
-		struct FileD3dShader {
-			virtual ~FileD3dShader() { releaseAll(); }
-			inline void releaseAll() {
-#define R(x) if(x) {x->Release(); x = nullptr;}
-				R(data)
-#undef R
-			}
-			ID3DBlob* data = nullptr;
-		};
-
-		std::string path;
-		FileType::FileType type;
-		FileInterface* methods = nullptr;
+		std::string mpath;
+		FT_Face* mfaces = nullptr;
+		int mfacesNum = 0;
+		EncodingType mencodingType = FT_ENCODING_NONE;
 	};
 }

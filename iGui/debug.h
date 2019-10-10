@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <crtdbg.h>
 #include <string>
 
 namespace iCommon {
@@ -11,5 +12,6 @@ namespace iCommon {
 		void operator() (std::string str);
 		void error(std::string str);
 		void error(std::string str, HRESULT errorCode);
+		bool hasMemoryLeaks();
 	};
 }

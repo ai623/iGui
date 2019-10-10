@@ -20,5 +20,9 @@ namespace iCommon {
 		MessageBoxA(NULL, (str + ", Error code: " + std::to_string(errorCode)).c_str(), NULL, MB_OK);
 		exit(-1);
 	}
+	bool Debug::hasMemoryLeaks()
+	{
+		return _CrtDumpMemoryLeaks();
+	}
 }
 

@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "file.h"
 
 using namespace iGui;
 
@@ -78,11 +79,15 @@ private:
 };
 
 int guiMain() {
+	iCommon::fileInit();
+
 	iGuiInit.enableDebug();
 	iGuiInit.disable4xMsaa();
 	iGuiInit();
 
 	MyWindow wnd;
+	iCommon::FontFile file;
+	auto re = file.open(R"(D:\temp\Fonts\msyh.ttc)");
 
 	return exec();
 }

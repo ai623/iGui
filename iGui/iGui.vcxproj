@@ -70,7 +70,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)\iGui\freetype\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)\iGui\freetype\win64;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(SolutionDir)\iGui\freetype\win64;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -91,6 +95,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <ShaderModel>5.0</ShaderModel>
@@ -131,12 +136,14 @@
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="gui.h" />
+    <ClInclude Include="painterExt.h" />
     <ClInclude Include="shape.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="file.cpp" />
     <ClCompile Include="gui.cpp" />
+    <ClCompile Include="painterExt.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
   <ItemGroup>

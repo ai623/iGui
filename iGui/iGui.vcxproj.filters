@@ -33,6 +33,9 @@
     <ClInclude Include="shape.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="painterExt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="debug.cpp">
@@ -45,6 +48,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="test.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="painterExt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

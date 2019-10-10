@@ -604,6 +604,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int nCmdShow
 		using namespace iGui;
 		_internal::dxgiFactory->Release();
 	}
+	auto leak = iGui::debug.hasMemoryLeaks();
+	if (leak) {
+		iGui::debug.error("Has Memory Leak!!!");
+	}
 
 	return re;
 }

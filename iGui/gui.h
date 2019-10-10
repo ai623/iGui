@@ -2,17 +2,24 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+
 #include <string>
 #include <initializer_list>
 #include <stdint.h>
+
+
 
 #include "common.h"
 #include "debug.h"
 #include "shape.h"
 
 namespace iGui {
+	struct Painter;
 	namespace _internal {
 		LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+		inline ID3D11Device* getDeviceFrom(Painter& pt);
+		inline ID3D11DeviceContext* getContextFrom(Painter& pt);
 	}
 	extern iCommon::Debug debug;
 
@@ -109,6 +116,8 @@ namespace iGui {
 		Painter& operator = (const Painter& pt);
 		Painter& operator = (Painter&& pt);
 
+		
+
 		void set(const Viewport& vp);
 		void setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY topology);
 		void set(const VertexBuffer& buffer);
@@ -118,7 +127,7 @@ namespace iGui {
 		void set(PixelShader& shader);
 
 		void draw();
-		
+
 		void clearTarget(Window& wnd);
 
 		enum {
@@ -142,12 +151,27 @@ namespace iGui {
 		D3D_FEATURE_LEVEL levelGet;
 
 		static const D3D_FEATURE_LEVEL levelsWant[];
+
+		friend struct VertexBuffer;
 		friend struct DepthStencilBuffer;
+		friend struct InputLayout;
 		friend struct VertexShader;
 		friend struct PixelShader;
-		friend struct InputLayout;
-		friend struct VertexBuffer;
+
+		friend ID3D11Device* _internal::getDeviceFrom(Painter&);
+		friend ID3D11DeviceContext* _internal::getContextFrom(Painter&);
 	};
+
+	namespace _internal {
+		inline ID3D11Device* getDeviceFrom(Painter& pt) {
+			return pt.device;
+		}
+
+		inline ID3D11DeviceContext* getContextFrom(Painter& pt) {
+			return pt.context;
+		}
+	}
+
 
 	struct Window {
 		Window();
@@ -317,7 +341,21 @@ namespace iGui {
 		friend struct Painter;
 	};
 
-	
+	struct PainterBackup;
+
+	struct PainterSetterInfo {
+
+	};
+
+	struct PainterSetter {
+		virtual void set(Painter&) = 0;
+		virtual void backup(Painter&, PainterBackup&) = 0;
+		virtual const PainterSetterInfo& getInfo() = 0;
+	};
+
+	struct PainterBackup : PainterSetter {
+	};
 }
+
 
 int guiMain();
