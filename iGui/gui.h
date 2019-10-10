@@ -133,6 +133,7 @@ namespace iGui {
 		void set(InputLayout& layout);
 		void set(const VertexBuffer& buffer, int slot = 0);
 		void set(const IndexBuffer& buffer, int offset = 0);
+		void setTarget(Window& wnd);
 		void setTarget(Window& wnd, DepthStencilBuffer& buff);
 		void set(VertexShader& shader);
 		void set(PixelShader& shader);

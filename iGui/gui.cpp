@@ -238,6 +238,11 @@ namespace iGui {
 		mcontext->IASetInputLayout(layout.mlayout);
 	}
 
+	void Painter::setTarget(Window& wnd)
+	{
+		mcontext->OMSetRenderTargets(1, &wnd.mtargetView, nullptr);
+	}
+
 	void Painter::setTarget(Window& wnd, DepthStencilBuffer& buff)
 	{
 		mcontext->OMSetRenderTargets(1, &wnd.mtargetView, buff.mdsView);

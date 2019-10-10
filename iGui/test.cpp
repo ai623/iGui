@@ -90,15 +90,35 @@ private:
 };
 
 int guiMain() {
-	iCommon::fileInit();
 
 	iGuiInit.enableDebug();
 	//iGuiInit.disable4xMsaa();
 	iGuiInit();
 
 	MyWindow wnd;
-	//iCommon::FontFile file;
-	//auto re = file.open(R"(D:\temp\Fonts\msyh.ttc)");
+
+	{
+		using namespace iCommon;
+		file::fileInit();
+		
+		using file::FontFile;
+		using file::FontFace;
+
+		FontFace face;
+		FontFile file;
+		auto re = file.open(R"(D:\temp\Fonts\msyh.ttc)");
+		re = file.readFontFace(face, 0);
+		auto& size = face.getGlyghSize();
+		re = face.setSizeByPixel(10,0);
+		re = face.setEncodingType(FT_ENCODING_UNICODE);
+		auto index = face.getGlyghIndex(L'a');
+		re = face.loadGlygh(index);
+		auto& outline = face.getOutline();
+
+		file::fileInit();
+	}
+
+	
 
 	return exec();
 }
