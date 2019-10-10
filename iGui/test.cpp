@@ -11,18 +11,18 @@ struct MyWindow :Window {
 	MyWindow(){
 		auto& painter = getPainter();
 
-		vertexShader = VertexShader(painter, L"../x64/Debug/VertexShader.cso");
+		vertexShader.init(painter, L"../x64/Debug/VertexShader.cso");
 		auto re = vertexShader.hasLoaded();
 		if (re == false)debug.error("");
 
-		pixelShader = PixelShader(painter, L"../x64/Debug/PixelShader.cso");
+		pixelShader.init(painter, L"../x64/Debug/PixelShader.cso");
 		re = pixelShader.hasLoaded();
 		if (re == false)debug.error("");
 
 		InputElementDesc ieDesc[]{ "POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 };
 
-		layout = InputLayout(painter, vertexShader, ieDesc, 1);
-		dsBuff = DepthStencilBuffer(*this);
+		layout.init(painter, vertexShader, ieDesc, 1);
+		dsBuff.init(*this);
 
 		VertexBufferDesc desc{};
 		desc.usage = D3D11_USAGE_IMMUTABLE;
@@ -42,10 +42,10 @@ struct MyWindow :Window {
 		auto rect = getWindowRect();
 
 		Viewport vp{
-			0,0,rect.width,rect.height,0,1
+			0,0,(FLOAT)rect.width,(FLOAT)rect.height,0,1
 		};
 
-		vertexBuffer = VertexBuffer(painter, arr, 3, desc);
+		vertexBuffer.init(painter, arr, 3, desc);
 
 		painter.set(vp);
 		painter.setPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -83,12 +83,12 @@ int guiMain() {
 	iCommon::fileInit();
 
 	iGuiInit.enableDebug();
-	iGuiInit.disable4xMsaa();
+	//iGuiInit.disable4xMsaa();
 	iGuiInit();
 
 	MyWindow wnd;
-	iCommon::FontFile file;
-	auto re = file.open(R"(D:\temp\Fonts\msyh.ttc)");
+	//iCommon::FontFile file;
+	//auto re = file.open(R"(D:\temp\Fonts\msyh.ttc)");
 
 	return exec();
 }
